@@ -111,7 +111,9 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
             ]
         ]
         controls = [
-            {'type':'space','height':15},
+            {'type':'space','height':5},
+            {'type':'label','height':15,'name':medianame,'height':30},
+            {'type':'space','height':5},
             {'type':'grid','name':'xlgrid','itemlayout':xl_layout,'value':urllist,'separator':True,'itemheight':40,'itemwidth':80},
             {'type':'space','height':15}
         ]
