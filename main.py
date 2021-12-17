@@ -1,7 +1,7 @@
 import time
 import StellarPlayer
 import math
-import json
+from . import json5
 import os
 import sys
 import requests
@@ -29,7 +29,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                     print("Unable to copy file. %s" % e)
                 except:
                     print("Unexpected error:", sys.exc_info())
-        down_url = "https://cdn.jsdelivr.net/gh/nomoodhalashao/my-movie@main/tv.json"
+        down_url = "https://cdn.jsdelivr.net/gh/fj365/CMP4@master/0/9.json"
         try:
             r = requests.get(down_url,timeout = 5,verify=False) 
             result = r.status_code
@@ -42,7 +42,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
 
     def loadSourceFile(self,file):
         file = open(file, "rb")
-        fileJson = json.loads(file.read())
+        fileJson = json5.loads(file.read())
         self.source = fileJson["lives"]
         print(self.source)
         file.close()    
