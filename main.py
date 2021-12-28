@@ -788,7 +788,6 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         
     def onStopParser(self, *args):
         self.stopjx = True
-        self.stopzyz = True
         
     def loading(self, page, stopLoading = False):
         if hasattr(self.player,'loadingAnimation'):
@@ -797,6 +796,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
     def stop(self):
         self.stopjx = True
         self.stop = True
+        self.stopzyz = True
         return super().stop()
             
 def newPlugin(player:StellarPlayer.IStellarPlayer,*arg):
