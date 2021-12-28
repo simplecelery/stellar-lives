@@ -58,6 +58,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                 except:
                     print("Unexpected error:", sys.exc_info())
         down_url = "https://cdn.jsdelivr.net/gh/fj365/CMP4@master/0/8.json"
+        #down_url = "https://fj365.gitee.io/cmp4/m.json"
         #down_url = "http://fj365.ml/m.json"
         #down_url = "https://cdn.jsdelivr.net/gh/fj365/CMP4@master/m.json"
         try:
@@ -408,15 +409,27 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                     if zyzapitype == 1:
                         jsondata = json.loads(res.text, strict = False)
                         if jsondata:
+                            pageindex = int(jsondata['page'])
+                            pagenumbers = int(jsondata['pagecount'])
+                            if pageindex < pagenumbers and pagenumbers < 5:
+                                zyzs.append({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1})
+                            if pagenumbers >= 5:
+                                continue
                             jsonlist = jsondata['list']
                             for item in jsonlist:
                                 self.medias.append({'ids':item['vod_id'],'title':item['vod_name'],'picture':item['vod_pic'],'api':zyzapiurl,'apitype':zyzapitype})
-                            pageindex = int(jsondata['page'])
-                            pagenumbers = int(jsondata['pagecount'])
-                            if pageindex < pagenumbers:
-                                zyzs.append({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1})
                     else:
                         bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
+                        selector = bs.select('rss > list')
+                        pagenumbers = 0
+                        pageindex = 0
+                        if selector:
+                            pageindex = int(selector[0].get('page'))
+                            pagenumbers = int(selector[0].get('pagecount'))
+                        if pageindex < pagenumbers and pagenumbers < 5:
+                            zyzs.append({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1})
+                        if pagenumbers >= 5:
+                            continue
                         selector = bs.select('rss > list > video')
                         if selector:
                             for item in selector:
@@ -428,14 +441,6 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                                     pic = picinfo[0].string
                                     ids = int(idsinfo[0].string)
                                     self.medias.append({'ids':ids,'title':name,'picture':pic,'api':zyzapiurl,'apitype':zyzapitype})
-                        selector = bs.select('rss > list')
-                        pagenumbers = 0
-                        pageindex = 0
-                        if selector:
-                            pageindex = int(selector[0].get('page'))
-                            pagenumbers = int(selector[0].get('pagecount'))
-                        if pageindex < pagenumbers:
-                                zyzs.append({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1})
                 else:
                     continue
             except:
@@ -445,6 +450,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         
       
     def on_zyz_click(self, page, listControl, item, itemControl):
+        self.stopzyz = True
         self.loading('影视资源')
         self.pg = ''
         self.wd = ''
@@ -467,6 +473,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.loading('影视资源',True)
         
     def on_zyzsecmenu_click(self, page, listControl, item, itemControl):
+        self.stopzyz = True
         self.loading('影视资源')
         self.medias = []
         self.player.updateControlValue('影视资源','mediagrid',self.medias)
