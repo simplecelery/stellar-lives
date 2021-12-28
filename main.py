@@ -129,6 +129,15 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                 plauurlstr = item['playUrl']
                 if len(plauurlstr) > 0:
                     continue
+                keyval = item['key']
+                if len(keyval) == 1:
+                    continue
+                if keyval.find('*') == 0:
+                    continue
+                playurl = item['api']
+                if playurl.find('?') > 0:
+                    item['api'] = playurl.split("?")[0]
+                    print(item['api'])
                 self.zyz.append(item)
         self.actzyz = 0
         if len(self.zyz) > 0:
@@ -446,7 +455,9 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.player.updateControlValue('影视资源','mediaclassgrid',self.mediaclass)
         self.player.updateControlValue('影视资源','mediagrid',self.medias)
         self.actzyz = item
+        print('item:' + str(self.actzyz))
         apiurl = self.zyz[self.actzyz]['api'] 
+        print(self.zyz[self.actzyz])
         apitype = self.zyz[self.actzyz]['type']
         url = apiurl + '?ac=list'
         self.getMediaClass(url,apitype)
