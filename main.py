@@ -247,7 +247,6 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
     
     def makeJXModal(self):
         parser_layout =[
-            {'type':'label','name':'jxname'},
             {'type':'link','name':'title','textColor':'#556B2F','fontSize':15,'@click':'on_parserurl_click'},
             {'type':'space','height':5}
         ]
@@ -263,6 +262,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                 ],
                 'height':40
             },
+            {'type':'label','name':'jxsm','value':'解析功能来自网络多个源，取得的播放地址如不能正常播放请切换解析结果','height':30},
             {'type':'grid','name':'parsergrid','itemlayout':parser_layout,'value':self.parserres,'separator':True,'itemheight':80,'itemwidth':120,'width':1.0},
         ]
         return controls
@@ -563,7 +563,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.allmovidesdata[medianame] = {'allmovies':mediainfo['source'],'actmovies':actmovies,'actparserurl':actparserurl}
         xl_list_layout = {'type':'link','name':'flag','fontSize':15,'textColor':'#ff0000','width':0.6,'@click':'on_xl_click'}
         movie_list_layout = {'type':'link','name':'title','fontSize':15,'@click':'on_movieurl_click'}
-        parserurl_list_layout = {'type':'link','name':'title','fontSize':15,'textColor':'#40ff40','@click':'on_zyzparserurl_click'}
+        parserurl_list_layout = {'type':'link','name':'title','fontSize':15,'textColor':'#006400','@click':'on_zyzparserurl_click'}
         controls = [
             {'type':'space','height':5},
             {'group':[
@@ -588,17 +588,18 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
             {'type':'space','height':5},
             {'group':
                 {'type':'grid','name':'movielist','itemlayout':movie_list_layout,'value':actmovies,'separator':True,'itemheight':30,'itemwidth':120},
-                'height':200
+                'height':160
             },
             {'type':'label','name':'jxdz','value':'','height':30},
             {'group':
                 {'type':'grid','name':'parserurllist','itemlayout':parserurl_list_layout,'value':actparserurl,'separator':True,'itemheight':30,'itemwidth':120},
-                'height':100
+                'height':70
             }
         ]
-        result,control = self.doModal(mediainfo['medianame'],750,650,'',controls)
+        result,control = self.doModal(mediainfo['medianame'],750,600,'',controls)
 
     def on_xl_click(self, page, listControl, item, itemControl):
+        self.player.updateControlValue(page,'movielist',[])
         if len(self.allmovidesdata[page]['allmovies']) > item:
             self.allmovidesdata[page]['actmovies'] = self.allmovidesdata[page]['allmovies'][item]['medias']
         self.player.updateControlValue(page,'movielist',self.allmovidesdata[page]['actmovies'])
@@ -613,16 +614,18 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                 self.player.play(playurl, caption=playname)
             else:
                 self.player and self.player.toast(page,'该线路需要解析播放，请点击解析地址播放')
-                self.parserurl(playurl,page)
+                self.parserurl(playurl,page,item)
         
     def on_zyzparserurl_click(self, page, listControl, item, itemControl):
         if len(self.allmovidesdata[page]['actparserurl']) > item:
             playurl = self.allmovidesdata[page]['actparserurl'][item]['playurl']
-            playname = page + ' ' + self.allmovidesdata[page]['actmovies'][item]['title']
+            print(playurl)
+            n = self.allmovidesdata[page]['actparserurl'][item]['index']
+            playname = page + ' ' + self.allmovidesdata[page]['actmovies'][n]['title']
             self.player.play(playurl, caption=playname)
         
-    def parserurl(self,url,page):
-        newthread = threading.Thread(target=self._parserUrlThread,args=(page,url))
+    def parserurl(self,url,page,n):
+        newthread = threading.Thread(target=self._parserUrlThread,args=(page,url,n))
         newthread.start()
         
     def on_zyz_parserurl_click(self, page, listControl, item, itemControl):
@@ -630,7 +633,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.player.play(url, caption=page)
         return
         
-    def _parserUrlThread(self,page,url):
+    def _parserUrlThread(self,page,url,n):
         self.allmovidesdata[page]['actparserurl'] = []
         self.player.updateControlValue(page,'parserurllist',self.allmovidesdata[page]['actparserurl'])
         self.player.updateControlValue(page,'jxdz','解析地址')
@@ -644,7 +647,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                     jsondata = json.loads(res.text, strict = False)
                     if jsondata:
                         if jsondata['code'] == 200 and jsondata['success'] == 1:
-                            self.allmovidesdata[page]['actparserurl'].append({'jxname':item['jxname'],'playurl':jsondata['url'],'title':jsondata['type']})
+                            self.allmovidesdata[page]['actparserurl'].append({'jxname':item['jxname'],'playurl':jsondata['url'],'title':jsondata['type'],'index':n})
                             if self.player.isModalExist(page):
                                 self.player.updateControlValue(page,'parserurllist',self.allmovidesdata[page]['actparserurl'])
                             continue
@@ -754,9 +757,8 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                         if jsondata['code'] == 200 and jsondata['success'] == 1:
                             self.parserres.append({'jxname':item['jxname'],'playurl':jsondata['url'],'title':jsondata['type']})
                             continue
-                self.parserres.append({'jxname':item['jxname'],'playurl':'','title':'解析失败'})
             except:
-                self.parserres.append({'jxname':item['jxname'],'playurl':'','title':'解析失败'})
+                continue
             self.player.updateControlValue('网页解析','parsergrid',self.parserres)
         self.player.toast('网页解析','解析完成')
         return
