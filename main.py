@@ -372,7 +372,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         keyval = self.player.getControlValue('影视资源','search_edit').strip() 
         zyzs = []
         for item in self.zyz:
-            if not 'searchable' in item and item['searchable'] == 0:
+            if 'searchable' in item and item['searchable'] == 0:
                 continue
             zyzs.append({'api':item['api'],'type':item['type'],'pg':1})
         if self.zyzThread and self.zyzThread.is_alive():
