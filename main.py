@@ -303,8 +303,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                             {'type':'label','name':'线路列表','height':30},
                             {'type':'grid','name':'tvxlgrid','itemlayout':xl_layout,'value':self.actTVXL,'separator':True,'itemheight':40,'itemwidth':120}
                         ],
-                        'dir':'vertical',
-                        'width':1.0
+                        'dir':'vertical'
                     }
                 ]
             }
