@@ -46,9 +46,9 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
     def start(self):
         super().start()
         self.configjson = 'tv.json'
-        jsonpath = self.player.dataDirectory + '\\tv.json'
+        jsonpath = self.player.dataDirectory + os.path.sep + 'tv.json'
         if os.path.exists(jsonpath) == False:
-            localpath = os.path.split(os.path.realpath(__file__))[0] + '\\tv.json'
+            localpath = os.path.split(os.path.realpath(__file__))[0] + os.path.sep + 'tv.json'
             print(localpath)
             if os.path.exists(localpath):
                 try:
