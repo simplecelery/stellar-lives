@@ -39,8 +39,8 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.allxlsdata = {}
         self.allzyzparserdata = {}
         self.stopjx = True
-        self.stop = False
         self.zyzThread = None
+        self.parserThread = None
         self.stopzyz = True
     
     def start(self):
@@ -417,7 +417,8 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                                 continue
                             jsonlist = jsondata['list']
                             for item in jsonlist:
-                                self.medias.append({'ids':item['vod_id'],'title':item['vod_name'],'picture':item['vod_pic'],'api':zyzapiurl,'apitype':zyzapitype})
+                                if self.stopzyz == False:
+                                    self.medias.append({'ids':item['vod_id'],'title':item['vod_name'],'picture':item['vod_pic'],'api':zyzapiurl,'apitype':zyzapitype})
                     else:
                         bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
                         selector = bs.select('rss > list')
@@ -440,12 +441,14 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                                     name = nameinfo[0].string
                                     pic = picinfo[0].string
                                     ids = int(idsinfo[0].string)
-                                    self.medias.append({'ids':ids,'title':name,'picture':pic,'api':zyzapiurl,'apitype':zyzapitype})
+                                    if self.stopzyz == False:
+                                        self.medias.append({'ids':ids,'title':name,'picture':pic,'api':zyzapiurl,'apitype':zyzapitype})
                 else:
                     continue
             except:
                 continue
-            self.player.updateControlValue('影视资源','mediagrid',self.medias)
+            if self.stopzyz == False:
+                self.player.updateControlValue('影视资源','mediagrid',self.medias)
             print(self.medias)
         
       
@@ -577,7 +580,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         if len(mediainfo['source']) > 0:
             actmovies = mediainfo['source'][0]['medias']
         medianame = mediainfo['medianame']
-        self.allmovidesdata[medianame] = {'allmovies':mediainfo['source'],'actmovies':actmovies,'actparserurl':actparserurl}
+        self.allmovidesdata[medianame] = {'allmovies':mediainfo['source'],'actmovies':actmovies,'actparserurl':actparserurl,'parserstop':True,'parserthread':None}
         xl_list_layout = {'type':'link','name':'flag','fontSize':15,'textColor':'#ff0000','width':0.6,'@click':'on_xl_click'}
         movie_list_layout = {'type':'link','name':'title','fontSize':15,'@click':'on_movieurl_click'}
         parserurl_list_layout = {'type':'link','name':'title','fontSize':15,'textColor':'#006400','@click':'on_zyzparserurl_click'}
@@ -642,8 +645,12 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
             self.player.play(playurl, caption=playname)
         
     def parserurl(self,url,page,n):
+        if self.allmovidesdata[page]['parserthread'] and self.allmovidesdata[page]['parserthread'].is_alive():
+            self.allmovidesdata[page]['parserstop'] = True
+            self.allmovidesdata[page]['parserthread'].join()
         newthread = threading.Thread(target=self._parserUrlThread,args=(page,url,n))
-        newthread.start()
+        self.allmovidesdata[page]['parserthread'] = newthread
+        self.allmovidesdata[page]['parserthread'].start()
         
     def on_zyz_parserurl_click(self, page, listControl, item, itemControl):
         url = self.allzyzparserdata[page]['urls'][item]['playurl']
@@ -651,11 +658,12 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         return
         
     def _parserUrlThread(self,page,url,n):
+        self.allmovidesdata[page]['parserstop'] = False
         self.allmovidesdata[page]['actparserurl'] = []
         self.player.updateControlValue(page,'parserurllist',self.allmovidesdata[page]['actparserurl'])
         self.player.updateControlValue(page,'jxdz','解析地址')
         for item in self.jx:
-            if self.stop:
+            if self.allmovidesdata[page]['parserstop']:
                 return
             parserurl = item['jxurl'] + url
             try:
@@ -665,7 +673,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                     if jsondata:
                         if jsondata['code'] == 200 and jsondata['success'] == 1:
                             self.allmovidesdata[page]['actparserurl'].append({'jxname':item['jxname'],'playurl':jsondata['url'],'title':jsondata['type'],'index':n})
-                            if self.player.isModalExist(page):
+                            if self.player.isModalExist(page) and self.allmovidesdata[page]['parserstop'] == False:
                                 self.player.updateControlValue(page,'parserurllist',self.allmovidesdata[page]['actparserurl'])
                             continue
             except:
@@ -776,7 +784,8 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                             continue
             except:
                 continue
-            self.player.updateControlValue('网页解析','parsergrid',self.parserres)
+            if self.stopjx == False:
+                self.player.updateControlValue('网页解析','parsergrid',self.parserres)
         self.player.toast('网页解析','解析完成')
         return
     
@@ -795,8 +804,9 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
     
     def stop(self):
         self.stopjx = True
-        self.stop = True
         self.stopzyz = True
+        for key,value in self.allmovidesdata.items():
+            self.allmovidesdata[key]['parserstop']  = True
         return super().stop()
             
 def newPlugin(player:StellarPlayer.IStellarPlayer,*arg):
