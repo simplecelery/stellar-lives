@@ -42,6 +42,8 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.zyzThread = None
         self.parserThread = None
         self.stopzyz = True
+        self.li = []
+        self.pli = []
     
     def start(self):
         super().start()
@@ -392,65 +394,76 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.zyzThread.start()
     
     def _zyzSearchThread(self,zyzs,key):
+        for t in self.li:
+            t.join()
+        self.li = []
         self.player.updateControlValue('影视资源','cur_page','')
         self.player.updateControlValue('影视资源','max_page','')
         self.stopzyz = False
         self.medias = []
         self.player.updateControlValue('影视资源','mediagrid',self.medias)
         for node in zyzs:
-            zyzapiurl = node['api']
-            zyzapitype = node['type']
-            if self.stopzyz:
-                return
-            url = zyzapiurl + '?ac=videolist&wd=' + key + '&pg=' + str(node['pg'])
-            try:
-                res = requests.get(url,timeout = 5,verify=False)
-                if res.status_code == 200:
-                    if zyzapitype == 1:
-                        jsondata = json.loads(res.text, strict = False)
-                        if jsondata:
-                            pageindex = int(jsondata['page'])
-                            pagenumbers = int(jsondata['pagecount'])
-                            if pageindex < pagenumbers and pagenumbers < 5:
-                                zyzs.append({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1})
-                            if pagenumbers >= 5:
-                                continue
-                            jsonlist = jsondata['list']
-                            for item in jsonlist:
-                                if self.stopzyz == False:
-                                    self.medias.append({'ids':item['vod_id'],'title':item['vod_name'],'picture':item['vod_pic'],'api':zyzapiurl,'apitype':zyzapitype})
-                    else:
-                        bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
-                        selector = bs.select('rss > list')
-                        pagenumbers = 0
-                        pageindex = 0
-                        if selector:
-                            pageindex = int(selector[0].get('page'))
-                            pagenumbers = int(selector[0].get('pagecount'))
-                        if pageindex < pagenumbers and pagenumbers < 5:
-                            zyzs.append({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1})
-                        if pagenumbers >= 5:
-                            continue
-                        selector = bs.select('rss > list > video')
-                        if selector:
-                            for item in selector:
-                                nameinfo = item.select('name')
-                                picinfo = item.select('pic')
-                                idsinfo = item.select('id')
-                                if nameinfo and picinfo and idsinfo:
-                                    name = nameinfo[0].string
-                                    pic = picinfo[0].string
-                                    ids = int(idsinfo[0].string)
-                                    if self.stopzyz == False:
-                                        self.medias.append({'ids':ids,'title':name,'picture':pic,'api':zyzapiurl,'apitype':zyzapitype})
-                else:
-                    continue
-            except:
-                continue
-            if self.stopzyz == False:
-                self.player.updateControlValue('影视资源','mediagrid',self.medias)
-            print(self.medias)
+            self.newSearchNode(node,key)
+    
+    def newSearchNode(self,node,key):
+        t = threading.Thread(target=self._zyzSearchNoneThread,args=(node,key))
+        self.li.append(t)
+        t.start()
         
+    def _zyzSearchNoneThread(self,node,key):
+        zyzapiurl = node['api']
+        zyzapitype = node['type']
+        if self.stopzyz:
+            return
+        url = zyzapiurl + '?ac=videolist&wd=' + key + '&pg=' + str(node['pg'])
+        try:
+            res = requests.get(url,timeout = 5,verify=False)
+            if res.status_code == 200:
+                if zyzapitype == 1:
+                    jsondata = json.loads(res.text, strict = False)
+                    if jsondata:
+                        pageindex = int(jsondata['page'])
+                        pagenumbers = int(jsondata['pagecount'])
+                        if pageindex < pagenumbers and pagenumbers < 5:
+                            self.newSearchNode({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1},key)
+                            #zyzs.append({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1})
+                        if pagenumbers >= 5:
+                            return
+                        jsonlist = jsondata['list']
+                        for item in jsonlist:
+                            if self.stopzyz == False:
+                                self.medias.append({'ids':item['vod_id'],'title':item['vod_name'],'picture':item['vod_pic'],'api':zyzapiurl,'apitype':zyzapitype})
+                else:
+                    bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
+                    selector = bs.select('rss > list')
+                    pagenumbers = 0
+                    pageindex = 0
+                    if selector:
+                        pageindex = int(selector[0].get('page'))
+                        pagenumbers = int(selector[0].get('pagecount'))
+                    if pageindex < pagenumbers and pagenumbers < 5:
+                        self.newSearchNode({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1},key)
+                        #zyzs.append({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1})
+                    if pagenumbers >= 5:
+                        return
+                    selector = bs.select('rss > list > video')
+                    if selector:
+                        for item in selector:
+                            nameinfo = item.select('name')
+                            picinfo = item.select('pic')
+                            idsinfo = item.select('id')
+                            if nameinfo and picinfo and idsinfo:
+                                name = nameinfo[0].string
+                                pic = picinfo[0].string
+                                ids = int(idsinfo[0].string)
+                                if self.stopzyz == False:
+                                    self.medias.append({'ids':ids,'title':name,'picture':pic,'api':zyzapiurl,'apitype':zyzapitype})
+            else:
+                return
+        except:
+            return
+        if self.stopzyz == False:
+            self.player.updateControlValue('影视资源','mediagrid',self.medias)
       
     def on_zyz_click(self, page, listControl, item, itemControl):
         self.stopzyz = True
@@ -658,30 +671,41 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         return
         
     def _parserUrlThread(self,page,url,n):
+        for t in self.pli:
+            t.join()
+        self.pli = []
         self.allmovidesdata[page]['parserstop'] = False
         self.allmovidesdata[page]['actparserurl'] = []
         self.player.updateControlValue(page,'parserurllist',self.allmovidesdata[page]['actparserurl'])
         self.player.updateControlValue(page,'jxdz','解析地址')
         for item in self.jx:
-            if self.allmovidesdata[page]['parserstop']:
-                return
-            parserurl = item['jxurl'] + url
-            try:
-                res = requests.get(parserurl,timeout = 5,verify=False)
-                if res.status_code == 200:
-                    jsondata = json.loads(res.text, strict = False)
-                    if jsondata:
-                        if jsondata['code'] == 200 and jsondata['success'] == 1:
-                            self.allmovidesdata[page]['actparserurl'].append({'jxname':item['jxname'],'playurl':jsondata['url'],'title':jsondata['type'],'index':n})
-                            if self.player.isModalExist(page) and self.allmovidesdata[page]['parserstop'] == False:
-                                self.player.updateControlValue(page,'parserurllist',self.allmovidesdata[page]['actparserurl'])
-                            continue
-            except:
-                continue
+            t = threading.Thread(target=self._parserNodeThread,args=(item,page,url,n))
+            t.start()
+            self.pli.append(t)
+        for t in self.pli:
+            t.join()
         if len(self.allmovidesdata[page]['actparserurl']) == 0:
             self.player and self.player.toast(page,'无法获取视频解析地址或资源已下架，请切换线路')
             return
         return
+        
+    def _parserNodeThread(self,item,page,url,n):
+        if self.allmovidesdata[page]['parserstop']:
+            return
+        parserurl = item['jxurl'] + url
+        try:
+            res = requests.get(parserurl,timeout = 5,verify=False)
+            if res.status_code == 200:
+                jsondata = json.loads(res.text, strict = False)
+                if jsondata:
+                    if jsondata['code'] == 200 and jsondata['success'] == 1:
+                        self.allmovidesdata[page]['actparserurl'].append({'jxname':item['jxname'],'playurl':jsondata['url'],'title':jsondata['type'],'index':n})
+                        if self.player.isModalExist(page) and self.allmovidesdata[page]['parserstop'] == False:
+                            self.player.updateControlValue(page,'parserurllist',self.allmovidesdata[page]['actparserurl'])
+                        return
+        except:
+            return
+
         
     def reloadTVXL(self,n):
         self.actTVXL = []
@@ -765,27 +789,34 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         newthread.start()
         return
     
+    def _jxurlThread(self,item,parser_word):
+        if self.stopjx:
+            return
+        url = item['jxurl'] + parser_word
+        try:
+            res = requests.get(url,timeout = 5,verify=False)
+            if res.status_code == 200:
+                jsondata = json.loads(res.text, strict = False)
+                if jsondata:
+                    if jsondata['code'] == 200 and jsondata['success'] == 1 and jsondata['url'] != "":
+                        self.parserres.append({'jxname':item['jxname'],'playurl':jsondata['url'],'title':jsondata['type']})
+                        self.player.updateControlValue('网页解析','parsergrid',self.parserres)
+                        return
+        except:
+            return
+    
     def _parserThread(self):
         parser_word = self.player.getControlValue('网页解析','parser_edit').strip()
         self.parserres  = []
         self.player.updateControlValue('网页解析','parsergrid',self.parserres)
         self.stopjx = False
+        jxli = []
         for item in self.jx:
-            if self.stopjx:
-                return
-            url = item['jxurl'] + parser_word
-            try:
-                res = requests.get(url,timeout = 5,verify=False)
-                if res.status_code == 200:
-                    jsondata = json.loads(res.text, strict = False)
-                    if jsondata:
-                        if jsondata['code'] == 200 and jsondata['success'] == 1:
-                            self.parserres.append({'jxname':item['jxname'],'playurl':jsondata['url'],'title':jsondata['type']})
-                            continue
-            except:
-                continue
-            if self.stopjx == False:
-                self.player.updateControlValue('网页解析','parsergrid',self.parserres)
+            t = threading.Thread(target=self._jxurlThread,args=[item,parser_word,])
+            t.start()
+            jxli.append(t)
+        for t in jxli:
+            t.join()
         self.player.toast('网页解析','解析完成')
         return
     
@@ -794,6 +825,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
             return
         url = self.parserres[item]['playurl']
         self.player.play(url)
+        print(url)
         
     def onStopParser(self, *args):
         self.stopjx = True
