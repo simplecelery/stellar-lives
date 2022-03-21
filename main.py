@@ -52,6 +52,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.stopzyz = True
         self.li = []
         self.pli = []
+        self.allSearchMedias = []
     
     def start(self):
         super().start()
@@ -417,13 +418,12 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.player.updateControlValue('影视资源','max_page','')
         self.stopzyz = False
         self.medias = []
+        self.allSearchMedias = []
         self.player.updateControlValue('影视资源','mediagrid',self.medias)
         for node in zyzs:
             self.newSearchNode(node,key)
     
     def newSearchNode(self,node,key):
-        if len(self.medias) > 50:
-            return
         t = threading.Thread(target=self._zyzSearchNoneThread,args=(node,key))
         self.li.append(t)
         t.start()
@@ -432,8 +432,6 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         zyzapiurl = node['api']
         zyzapitype = node['type']
         if self.stopzyz:
-            return
-        if len(self.medias) > 50:
             return
         url = zyzapiurl + '?ac=videolist&wd=' + key + '&pg=' + str(node['pg'])
         try:
@@ -446,14 +444,12 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                         pagenumbers = int(jsondata['pagecount'])
                         if pageindex < pagenumbers and pagenumbers < 5:
                             self.newSearchNode({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1},key)
-                            if len(self.medias) > 50:
-                                return
                         if pagenumbers >= 5:
                             return
                         jsonlist = jsondata['list']
                         for item in jsonlist:
                             if self.stopzyz == False:
-                                self.medias.append({'ids':item['vod_id'],'title':item['vod_name'],'picture':item['vod_pic'],'api':zyzapiurl,'apitype':zyzapitype})
+                                self.allSearchMedias.append({'ids':item['vod_id'],'title':item['vod_name'],'picture':item['vod_pic'],'api':zyzapiurl,'apitype':zyzapitype})
                 else:
                     bs = bs4.BeautifulSoup(res.content.decode('UTF-8','ignore'),'html.parser')
                     selector = bs.select('rss > list')
@@ -464,8 +460,6 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                         pagenumbers = int(selector[0].get('pagecount'))
                     if pageindex < pagenumbers and pagenumbers < 5:
                         self.newSearchNode({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1},key)
-                        if len(self.medias) > 50:
-                            return
                     if pagenumbers >= 5:
                         return
                     selector = bs.select('rss > list > video')
@@ -479,16 +473,31 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                                 pic = picinfo[0].string
                                 ids = int(idsinfo[0].string)
                                 if self.stopzyz == False:
-                                    self.medias.append({'ids':ids,'title':name,'picture':pic,'api':zyzapiurl,'apitype':zyzapitype})
+                                    self.allSearchMedias.append({'ids':ids,'title':name,'picture':pic,'api':zyzapiurl,'apitype':zyzapitype})
             else:
                 return
         except:
             return
         if self.stopzyz == False:
+            if len(self.medias) < 20:
+                for i in range(len(self.medias),20):
+                    self.pageindex = 1
+                    self.medias.append(self.allSearchMedias[i]);
+                    self.cur_page = '第1页'
+                    self.player.updateControlValue('影视资源','cur_page',self.cur_page)
+            self.pagenumbers = len(self.allSearchMedias) // 20
+            if self.pagenumbers * 20 < len(self.allSearchMedias):
+                self.pagenumbers = self.pagenumbers + 1
+            self.max_page = '共' + str(self.pagenumbers) + '页'
+            self.player.updateControlValue('影视资源','max_page',self.max_page)
             self.player.updateControlValue('影视资源','mediagrid',self.medias)
       
     def on_zyz_click(self, page, listControl, item, itemControl):
         self.stopzyz = True
+        for t in self.li:
+            t.join()
+        self.zyzThread.join()
+        self.allSearchMedias = []
         self.loading('影视资源')
         self.pg = ''
         self.wd = ''
@@ -512,6 +521,10 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         
     def on_zyzsecmenu_click(self, page, listControl, item, itemControl):
         self.stopzyz = True
+        for t in self.li:
+            t.join()
+        self.zyzThread.join()
+        self.allSearchMedias = []
         self.loading('影视资源')
         self.medias = []
         self.player.updateControlValue('影视资源','mediagrid',self.medias)
@@ -762,49 +775,79 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         xlname = page + self.actTVXL[item]['xlname']
         self.player.play(url, caption=xlname)
         
-    def onClickFirstPage(self, *args):
-        if self.firstpg == '':
+    def updateSearch(self,index):
+        print(index)
+        if index < 1:
             return
-        self.pg = self.firstpg
-        self.loading('影视资源')
         self.medias = []
         self.player.updateControlValue('影视资源','mediagrid',self.medias)
-        self.getMediaList()
-        self.player.updateControlValue('影视资源','mediagrid',self.medias)
-        self.loading('影视资源',True)
+        self.pageindex = index
+        self.cur_page = '第' + str(self.pageindex) + '页'
+        self.player.updateControlValue('影视资源','cur_page',self.cur_page)
+        if len(self.allSearchMedias) >= 20 * (index - 1):
+            idxend = 20 * index
+            idxstart = idxend - 20
+            if idxend > len(self.allSearchMedias):
+                idxend = len(self.allSearchMedias)
+            for i in range(idxstart,idxend):
+                self.medias.append(self.allSearchMedias[i])
+            self.player.updateControlValue('影视资源','mediagrid',self.medias)
+    
+    def onClickFirstPage(self, *args):
+        if len(self.allSearchMedias) == 0:
+            if self.firstpg == '':
+                return
+            self.pg = self.firstpg
+            self.loading('影视资源')
+            self.medias = []
+            self.player.updateControlValue('影视资源','mediagrid',self.medias)
+            self.getMediaList()
+            self.player.updateControlValue('影视资源','mediagrid',self.medias)
+            self.loading('影视资源',True)
+        else:
+            self.updateSearch(1)
         
     def onClickFormerPage(self, *args):
-        if self.previouspg == '':
-            return
-        self.pg = self.previouspg
-        self.loading('影视资源')
-        self.medias = []
-        self.player.updateControlValue('影视资源','mediagrid',self.medias)
-        self.getMediaList()
-        self.player.updateControlValue('影视资源','mediagrid',self.medias)
-        self.loading('影视资源',True)
+        if len(self.allSearchMedias) == 0:
+            if self.previouspg == '':
+                return
+            self.pg = self.previouspg
+            self.loading('影视资源')
+            self.medias = []
+            self.player.updateControlValue('影视资源','mediagrid',self.medias)
+            self.getMediaList()
+            self.player.updateControlValue('影视资源','mediagrid',self.medias)
+            self.loading('影视资源',True)
+        else:
+            self.updateSearch(self.pageindex - 1)
     
     def onClickNextPage(self, *args):
-        if self.nextpg == '':
-            return
-        self.pg = self.nextpg
-        self.loading('影视资源')
-        self.medias = []
-        self.player.updateControlValue('影视资源','mediagrid',self.medias)
-        self.getMediaList()
-        self.player.updateControlValue('影视资源','mediagrid',self.medias)
-        self.loading('影视资源',True)
+        if len(self.allSearchMedias) == 0:
+            if self.nextpg == '':
+                return
+            self.pg = self.nextpg
+            self.loading('影视资源')
+            self.medias = []
+            self.player.updateControlValue('影视资源','mediagrid',self.medias)
+            self.getMediaList()
+            self.player.updateControlValue('影视资源','mediagrid',self.medias)
+            self.loading('影视资源',True)
+        else:
+            self.updateSearch(self.pageindex + 1)
         
     def onClickLastPage(self, *args):
-        if self.lastpg == '':
-            return
-        self.pg = self.lastpg
-        self.loading('影视资源')
-        self.medias = []
-        self.player.updateControlValue('影视资源','mediagrid',self.medias)
-        self.getMediaList()
-        self.player.updateControlValue('影视资源','mediagrid',self.medias)
-        self.loading('影视资源',True)
+        if len(self.allSearchMedias) == 0:
+            if self.lastpg == '':
+                return
+            self.pg = self.lastpg
+            self.loading('影视资源')
+            self.medias = []
+            self.player.updateControlValue('影视资源','mediagrid',self.medias)
+            self.getMediaList()
+            self.player.updateControlValue('影视资源','mediagrid',self.medias)
+            self.loading('影视资源',True)
+        else:
+            self.updateSearch(self.pagenumbers)
         
     def onParser(self, *args):
         newthread = threading.Thread(target=self._parserThread)
