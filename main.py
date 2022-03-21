@@ -12,6 +12,14 @@ import threading
 import time
 from shutil import copyfile
 
+pbc = ["薦","成人电影","麻豆传媒","果冻传媒","乃","抽插","直播","觀","极品","女神","無碼","奸","有碼","无码","3p","女上位","变态","魅惑","女友","少妇","有码","性感","先生","潮吹","潮喷","喷潮","愛","親","澤","婦","幹","絕","對","痴女","免费看","97yj.xyz","番号","宅男","色情","人妖","在线播放","干炮","小姐姐","無","衝撃","撃","狂い","機","橋","堕","電","會所","乳","推特","尻","屁股","奶大","爽","大胸","射","私拍","淫","大乱交","拷問","開発","性爱","高潮","薬","斗鱼","韓國","學","射","操","逼","性生活","肏","實","錄","天美传媒","加勒比","里番","未亡人","tokyo","援交","重口","骚","尤物","全裸","幼女","歐美","蘿莉","流出","泄密","裸贷","啪啪","約","天海翼","國","產","創","風呂","無修正","大尺度","超人氣","写真","小电影","探花","sexy","kin8teng","撸管","金8天國","多p","生殖","丝语","诱惑","彼女","魔穗","素人","绿帽","福利","人妻","刘玥","june","乱伦","妻","无套","罩杯","主播","樂","露脸","奶子","屌","丝袜","车震","萝莉","自慰","自拍","丝袜","美腿","国语对白","调教","誘惑","視頻","熟女","桜","会所"]
+
+def checkpbc(word):
+    for t in pbc:
+        if word.find(t) >= 0:
+            return True
+    return False
+
 class livesplugin(StellarPlayer.IStellarPlayerPlugin):
     def __init__(self,player:StellarPlayer.IStellarPlayer):
         super().__init__(player)
@@ -366,7 +374,11 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         return controls
       
     def onSearchActZYZ(self, *args):
-        keyval = self.player.getControlValue('影视资源','search_edit').strip() 
+        keyval = self.player.getControlValue('影视资源','search_edit').strip()
+        if checkpbc(keyval):
+            self.medias = []
+            self.player.updateControlValue('影视资源','mediagrid',self.medias)
+            return
         if 'searchable' in self.zyz[self.actzyz] and self.zyz[self.actzyz]['searchable'] == 0:
             self.player.toast('影视资源','本站不支持搜索')
             return
@@ -380,7 +392,11 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.zyzThread.start()
     
     def onSearchAllZYZ(self, *args):
-        keyval = self.player.getControlValue('影视资源','search_edit').strip() 
+        keyval = self.player.getControlValue('影视资源','search_edit').strip()
+        if checkpbc(keyval):
+            self.medias = []
+            self.player.updateControlValue('影视资源','mediagrid',self.medias)
+            return
         zyzs = []
         for item in self.zyz:
             if 'searchable' in item and item['searchable'] == 0:
@@ -406,6 +422,8 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
             self.newSearchNode(node,key)
     
     def newSearchNode(self,node,key):
+        if len(self.medias) > 50:
+            return
         t = threading.Thread(target=self._zyzSearchNoneThread,args=(node,key))
         self.li.append(t)
         t.start()
@@ -414,6 +432,8 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         zyzapiurl = node['api']
         zyzapitype = node['type']
         if self.stopzyz:
+            return
+        if len(self.medias) > 50:
             return
         url = zyzapiurl + '?ac=videolist&wd=' + key + '&pg=' + str(node['pg'])
         try:
@@ -426,7 +446,8 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                         pagenumbers = int(jsondata['pagecount'])
                         if pageindex < pagenumbers and pagenumbers < 5:
                             self.newSearchNode({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1},key)
-                            #zyzs.append({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1})
+                            if len(self.medias) > 50:
+                                return
                         if pagenumbers >= 5:
                             return
                         jsonlist = jsondata['list']
@@ -443,7 +464,8 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                         pagenumbers = int(selector[0].get('pagecount'))
                     if pageindex < pagenumbers and pagenumbers < 5:
                         self.newSearchNode({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1},key)
-                        #zyzs.append({'api':zyzapiurl,'type':zyzapitype,'pg':pageindex + 1})
+                        if len(self.medias) > 50:
+                            return
                     if pagenumbers >= 5:
                         return
                     selector = bs.select('rss > list > video')
