@@ -422,6 +422,8 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.player.updateControlValue('影视资源','mediagrid',self.medias)
         for node in zyzs:
             self.newSearchNode(node,key)
+        for t in self.li:
+            t.join()
     
     def newSearchNode(self,node,key):
         t = threading.Thread(target=self._zyzSearchNoneThread,args=(node,key))
@@ -494,9 +496,6 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
       
     def on_zyz_click(self, page, listControl, item, itemControl):
         self.stopzyz = True
-        for t in self.li:
-            t.join()
-        self.zyzThread.join()
         self.allSearchMedias = []
         self.loading('影视资源')
         self.pg = ''
@@ -522,7 +521,9 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
     def on_zyzsecmenu_click(self, page, listControl, item, itemControl):
         self.stopzyz = True
         for t in self.li:
-            t.join()
+            if t:
+                t.join()
+        self.li = []
         self.zyzThread.join()
         self.allSearchMedias = []
         self.loading('影视资源')
