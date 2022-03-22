@@ -482,7 +482,10 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
             return
         if self.stopzyz == False:
             if len(self.medias) < 20:
-                for i in range(len(self.medias),20):
+                num = 20
+                if num > len(self.allSearchMedias):
+                    num = len(self.allSearchMedias)
+                for i in range(len(self.medias),num):
                     self.pageindex = 1
                     self.medias.append(self.allSearchMedias[i]);
                     self.cur_page = '第1页'
