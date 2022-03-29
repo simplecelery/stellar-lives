@@ -138,9 +138,10 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.zyz = []
         for item in zyzjson:
             if item['type'] == 0 or item['type'] == 1:
-                plauurlstr = item['playUrl']
-                if len(plauurlstr) > 0:
-                    continue
+                if 'playUrl' in item:
+                    plauurlstr = item['playUrl']
+                    if len(plauurlstr) > 0:
+                        continue
                 keyval = item['key']
                 if len(keyval) == 1:
                     continue
@@ -149,7 +150,6 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                 playurl = item['api']
                 if playurl.find('?') > 0:
                     item['api'] = playurl.split("?")[0]
-                    print(item['api'])
                 self.zyz.append(item)
         self.actzyz = 0
         if len(self.zyz) > 0:
