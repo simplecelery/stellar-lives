@@ -388,6 +388,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         if self.zyzThread and self.zyzThread.is_alive():
             self.stopzyz = True
             self.zyzThread.join()
+            self.zyzThread = None
         newthread = threading.Thread(target=self._zyzSearchThread,args=(zyzs,keyval))
         self.zyzThread = newthread
         self.zyzThread.start()
@@ -406,6 +407,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         if self.zyzThread and self.zyzThread.is_alive():
             self.stopzyz = True
             self.zyzThread.join()
+            self.zyzThread = None
         newthread = threading.Thread(target=self._zyzSearchThread,args=(zyzs,keyval))
         self.zyzThread = newthread
         self.zyzThread.start()
@@ -527,7 +529,9 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
             if t:
                 t.join()
         self.li = []
-        self.zyzThread.join()
+        if self.zyzThread != None and self.zyzThread.is_alive():
+            self.zyzThread.join()
+            self.zyzThread = None
         self.allSearchMedias = []
         self.loading('影视资源')
         self.medias = []
