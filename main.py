@@ -687,7 +687,13 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
             playurl = self.allmovidesdata[page]['actmovies'][item]['url']
             playname = page + ' ' + self.allmovidesdata[page]['actmovies'][item]['title']
             if playurl.find('.m3u8') > 0 or playurl.find('.mp4') > 0:
-                self.player.play(playurl, caption=playname)
+                playlist = []
+                for item in self.allmovidesdata[page]['actmovies']:
+                    playlist.append({'url':item['url']})
+                try:
+                    self.player.playMultiUrls(playlist,playname)
+                except:
+                    self.player.play(playurl, caption=playname)
             else:
                 self.player and self.player.toast(page,'该线路需要解析播放，请点击解析地址播放')
                 self.parserurl(playurl,page,item)
@@ -698,7 +704,13 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
             print(playurl)
             n = self.allmovidesdata[page]['actparserurl'][item]['index']
             playname = page + ' ' + self.allmovidesdata[page]['actmovies'][n]['title']
-            self.player.play(playurl, caption=playname)
+            playlist = []
+            for item in self.allmovidesdata[page]['actparserurl']:
+                playlist.append({'url':item['playurl']})
+            try:
+                self.player.playMultiUrls(playlist,playname)
+            except:
+                self.player.play(playurl, caption=playname)
         
     def parserurl(self,url,page,n):
         if self.allmovidesdata[page]['parserthread'] and self.allmovidesdata[page]['parserthread'].is_alive():
@@ -707,11 +719,6 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         newthread = threading.Thread(target=self._parserUrlThread,args=(page,url,n))
         self.allmovidesdata[page]['parserthread'] = newthread
         self.allmovidesdata[page]['parserthread'].start()
-        
-    def on_zyz_parserurl_click(self, page, listControl, item, itemControl):
-        url = self.allzyzparserdata[page]['urls'][item]['playurl']
-        self.player.play(url, caption=page)
-        return
         
     def _parserUrlThread(self,page,url,n):
         for t in self.pli:
@@ -773,10 +780,16 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.player.updateControlValue('电视直播','tvxlgrid',self.actTVXL)
         self.reloadTVXL(item)
         self.player.updateControlValue('电视直播','tvxlgrid',self.actTVXL)
-        if len(self.actTVXL) == 1:
-            url = self.actTVXL[0]['xlurl']
-            xlname = page + self.actTVXL[0]['xlname']
-            self.player.play(url, caption=xlname)
+        playlist = []
+        for item in self.actTVXL:
+            playlist.append({'url':item['xlurl']})
+        try:
+            self.player.playMultiUrls(playlist,page)
+        except:
+            if len(self.actTVXL) == 1:
+                url = self.actTVXL[0]['xlurl']
+                xlname = page + self.actTVXL[0]['xlname']
+                self.player.play(url, caption=xlname)
     
     def on_tvxl_click(self, page, listControl, item, itemControl):
         url = self.actTVXL[item]['xlurl']
@@ -896,10 +909,15 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
     def on_parserurl_click(self, page, listControl, item, itemControl):
         if item >= len(self.parserres):
             return
-        url = self.parserres[item]['playurl']
-        self.player.play(url)
-        print(url)
-        
+        playlist = []
+        for item in self.parserres:
+            playlist.append({'url':item['playurl']})
+        try:
+            self.player.playMultiUrls(playlist)
+        except:
+            url = self.parserres[item]['playurl']
+            self.player.play(url)
+
     def onStopParser(self, *args):
         self.stopjx = True
         
