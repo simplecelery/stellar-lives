@@ -688,8 +688,9 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
             playname = page + ' ' + self.allmovidesdata[page]['actmovies'][item]['title']
             if playurl.find('.m3u8') > 0 or playurl.find('.mp4') > 0:
                 playlist = []
-                for item in self.allmovidesdata[page]['actmovies']:
-                    playlist.append({'url':item['url']})
+                for xl in self.allmovidesdata[page]['allmovies']:
+                    if len(xl['medias']) > item:
+                        playlist.append({'url':xl['medias'][item]['url']})
                 try:
                     self.player.playMultiUrls(playlist,playname)
                 except:
