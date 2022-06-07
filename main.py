@@ -925,8 +925,8 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         if item >= len(self.parserres):
             return
         playlist = []
-        for item in self.parserres:
-            playlist.append({'url':item['playurl']})
+        for it in self.parserres:
+            playlist.append({'url':it['playurl']})
         try:
             self.player.playMultiUrls(playlist)
         except:
