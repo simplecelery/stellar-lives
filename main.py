@@ -236,8 +236,10 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         print(self.jx)
     
     def loadSourceFile(self,file):
-        file = open(file, "rb")
-        fileJson = json5.loads(file.read())
+        file = open(file, "r",encoding = "UTF-8")
+        jsonstr = file.read()
+        jsonstr = jsonstr.replace('##','//')
+        fileJson = json5.loads(jsonstr)
         self.loadTV(fileJson["lives"])
         self.loadZYZ(fileJson['sites'])
         self.loadParser(fileJson['parses'])
