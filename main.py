@@ -70,8 +70,8 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                     print("Unexpected error:", sys.exc_info())
         #down_url = "https://cdn.jsdelivr.net/gh/fj365/CMP4@master/0/9.json"
         #down_url = "https://fj365.gitee.io/cmp4/m.json"
-        down_url = "http://fj365.ml/m.json"
-        #down_url = "https://cdn.jsdelivr.net/gh/fj365/CMP4@master/m.json"
+        #down_url = "http://fj365.ml/m.json"
+        down_url = "https://cdn.jsdelivr.net/gh/fj365/CMP4@master/m.json"
         try:
             r = requests.get(down_url,timeout = 5,verify=False) 
             result = r.status_code
