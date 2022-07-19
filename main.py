@@ -20,6 +20,26 @@ def checkpbc(word):
             return True
     return False
 
+class CheckZYZThread(threading.Thread):
+    def __init__(self, zyz):
+        threading.Thread.__init__(self)
+        self.zyz = zyz
+        self.result = None
+        
+    def run(self):
+        try:
+            down_url = self.zyz['api']
+            r = requests.get(down_url,timeout = 5,verify=False) 
+            result = r.status_code
+            if result == 200:
+                self.result = self.zyz
+
+        except Exception as r:
+           self.zyz = None
+        
+    def get_result(self):
+        return self.result
+
 class livesplugin(StellarPlayer.IStellarPlayerPlugin):
     def __init__(self,player:StellarPlayer.IStellarPlayer):
         super().__init__(player)
@@ -69,15 +89,17 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                 except:
                     print("Unexpected error:", sys.exc_info())
         #down_url = "https://cdn.jsdelivr.net/gh/fj365/CMP4@master/0/9.json"
-        #down_url = "https://fj365.gitee.io/cmp4/m.json"
+        down_url = "https://fj365.gitee.io/cmp4/m.json"
         #down_url = "http://fj365.ml/m.json"
-        down_url = "https://cdn.jsdelivr.net/gh/fj365/CMP4@master/m.json"
+        #down_url = "https://cdn.jsdelivr.net/gh/fj365/CMP4@master/m.json"
         try:
-            r = requests.get(down_url,timeout = 5,verify=False) 
+            header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36'}
+            r = requests.get(down_url,timeout = 5,headers = header,verify=False) 
             result = r.status_code
             if result == 200:
                 with open(self.configjson,'wb') as f:
                     f.write(r.content)
+                    f.close()
         except Exception as r:
             print('get remote source.json error %s' %r)
         self.loadSourceFile(self.configjson)
@@ -135,7 +157,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.player.updateControlValue('影视资源','max_page',self.max_page)
     
     def loadZYZ(self,zyzjson):
-        self.zyz = []
+        li = []
         for item in zyzjson:
             if item['type'] == 0 or item['type'] == 1:
                 if 'playUrl' in item:
@@ -150,7 +172,15 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                 playurl = item['api']
                 if playurl.find('?') > 0:
                     item['api'] = playurl.split("?")[0]
-                self.zyz.append(item)
+                t = CheckZYZThread(item)
+                li.append(t)
+                t.start()
+        self.zyz = []
+        for t in li:
+            t.join()
+            reszyz = t.get_result()
+            if reszyz:
+                self.zyz.append(reszyz)
         self.actzyz = 0
         if len(self.zyz) > 0:
             n = 0
