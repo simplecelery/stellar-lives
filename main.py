@@ -11,8 +11,136 @@ import requests
 import threading
 import time
 from shutil import copyfile
+import base64
 
 pbc = ["薦","成人电影","麻豆传媒","果冻传媒","乃","抽插","直播","觀","极品","女神","無碼","奸","有碼","无码","3p","女上位","变态","魅惑","女友","少妇","有码","性感","先生","潮吹","潮喷","喷潮","愛","親","澤","婦","幹","絕","對","痴女","免费看","97yj.xyz","番号","宅男","色情","人妖","在线播放","干炮","小姐姐","無","衝撃","撃","狂い","機","橋","堕","電","會所","乳","推特","尻","屁股","奶大","爽","大胸","射","私拍","淫","大乱交","拷問","開発","性爱","高潮","薬","斗鱼","韓國","學","射","操","逼","性生活","肏","實","錄","天美传媒","加勒比","里番","未亡人","tokyo","援交","重口","骚","尤物","全裸","幼女","歐美","蘿莉","流出","泄密","裸贷","啪啪","約","天海翼","國","產","創","風呂","無修正","大尺度","超人氣","写真","小电影","探花","sexy","kin8teng","撸管","金8天國","多p","生殖","丝语","诱惑","彼女","魔穗","素人","绿帽","福利","人妻","刘玥","june","乱伦","妻","无套","罩杯","主播","樂","露脸","奶子","屌","丝袜","车震","萝莉","自慰","自拍","丝袜","美腿","国语对白","调教","誘惑","視頻","熟女","桜","会所"]
+
+
+sourceurls = ["https://cdn.jsdelivr.net/gh/Cyril0563/lanjing_live@main/hd/live_plus.json",
+"https://raw.githubusercontents.com/Cyril0563/lanjing_live/main/hd/live_plus.json",
+"https://cdn.jsdelivr.net/gh/Cyril0563/lanjing_live@main/hn/live_plus.json",
+"https://raw.githubusercontents.com/Cyril0563/lanjing_live/main/hn/live_plus.json",
+"https://cdn.jsdelivr.net/gh/Cyril0563/lanjing_live@main/hk/live_plus.json",
+"https://raw.githubusercontents.com/Cyril0563/lanjing_live/main/hk/live_plus.json"]
+
+def getRedirect(redirect):
+    idx = redirect.find("ext=")
+    if idx > 0:
+        ext = redirect[idx + 4:]
+        reurl = str(base64.b64decode(ext),'UTF-8')
+        return reurl
+    else:
+        return None
+
+def getRedirectLives(redirecturl):
+    r = requests.get(redirecturl,timeout = 1,verify=False,)
+    r.encoding = 'utf-8'
+    if r.status_code != 200:
+        return
+    lines = r.text.split("\n")
+    groupname = ""
+    allLives = []
+    channels = []
+    for line in lines:
+        if line.find(",") < 0:
+            continue
+        detail = line.split(",")
+        if detail[1].strip() == "#genre#":
+            if groupname != "":
+                if len(channels) > 0:
+                    allLives.append({"group":groupname,"channels":channels})
+            groupname = detail[0].strip()
+            channels = []
+            continue
+        channelname = detail[0].strip()
+        strchannels = detail[1].split("#")
+        index = 0
+        urls = []
+        for url in strchannels:
+            i = 0
+            find = False
+            channelsnum = len(channels)
+            for i in range(channelsnum):
+                if channels[i]["name"] == channelname:
+                    channels[i]["urls"].append(url.strip())
+                    find = True
+                    break
+            if find == False:
+                urls.append(url.strip())
+        if len(urls) > 0:
+            channels.append({"name":channelname,"urls":urls})
+    allLives.append({"group":groupname,"channels":channels})
+    print(allLives)
+    return allLives
+
+def parserLives(jsonlives):
+    redirects = []
+    tv = []
+    for live in jsonlives:
+        alllives = []
+        for channel in live["channels"]:
+            allurls = []
+            index = 0
+            for url in channel["urls"]:
+                if url.find("proxy://") >= 0:
+                    redirects.append(url)
+                else:
+                    allurls.append(url)
+            if len(allurls) > 0:
+                alllives.append({"name":channel["name"],"urls":allurls})
+        if len(alllives) > 0:
+            tv.append({"group":live["group"],"channels":alllives})
+    for redirect in redirects:
+        redirecturl = getRedirect(redirect)
+        rlives = getRedirectLives(redirecturl)
+        for rlive in rlives:
+            tv.append(rlive)
+    return tv
+    
+def parserSites(sitelives):
+    allzyz = []
+    for item in sitelives:
+        if item['type'] == 0 or item['type'] == 1:
+            if 'playUrl' in item:
+                plauurlstr = item['playUrl']
+                if len(plauurlstr) > 0:
+                    continue
+            keyval = item['key']
+            if len(keyval) == 1:
+                continue
+            if keyval.find('*') == 0:
+                continue
+            playurl = item['api']
+            if playurl.find('?') > 0:
+                item['api'] = playurl.split("?")[0]
+            allzyz.append(item)
+    return allzyz
+
+def getSourceJson(outfile):
+    urllib3.disable_warnings()
+    header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36'}
+    for url in sourceurls:
+        try:
+            r = requests.get(url,timeout = 5,headers = header,verify=False) 
+            result = r.status_code
+            if result == 200:
+                jsonstr = r.text
+                jsonstr = jsonstr.replace('##','//')
+                fileJson = json5.loads(jsonstr)
+                livejson = parserLives(fileJson["lives"])
+                sitejson = parserSites(fileJson['sites'])
+                parserjson = fileJson['parses']
+                if livejson and sitejson and parserjson:
+                    savejson = {}
+                    savejson["lives"] = livejson
+                    savejson["sites"] = sitejson
+                    savejson["parses"] = parserjson
+                    with open(outfile, 'w',encoding='utf-8') as f:
+                        json.dump(savejson, f,sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
+                return livejson,sitejson,parserjson
+        except:
+            continue
+    return None,None,None
 
 def checkpbc(word):
     for t in pbc:
@@ -76,36 +204,18 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
     
     def start(self):
         super().start()
+        
         self.configjson = 'tv.json'
         jsonpath = self.player.dataDirectory + os.path.sep + 'tv.json'
-        if os.path.exists(jsonpath) == False:
-            localpath = os.path.split(os.path.realpath(__file__))[0] + os.path.sep + 'tv.json'
-            print(localpath)
-            if os.path.exists(localpath):
-                try:
-                    copyfile(localpath,jsonpath)
-                except IOError as e:
-                    print("Unable to copy file. %s" % e)
-                except:
-                    print("Unexpected error:", sys.exc_info())
-        #down_url = "https://cdn.jsdelivr.net/gh/fj365/CMP4@master/0/9.json"
-        down_url = "https://fj365.gitee.io/cmp4/m.json"
-        #down_url = "http://fj365.ml/m.json"
-        #down_url = "https://cdn.jsdelivr.net/gh/fj365/CMP4@master/m.json"
-        try:
-            header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36'}
-            r = requests.get(down_url,timeout = 5,headers = header,verify=False) 
-            result = r.status_code
-            if result == 200:
-                with open(self.configjson,'wb') as f:
-                    f.write(r.content)
-                    f.close()
-        except Exception as r:
-            print('get remote source.json error %s' %r)
-        self.loadSourceFile(self.configjson)
+        jsontv,jsonzyz,jsonjx = getSourceJson(jsonpath)
+
+        self.loadSourceFile(self.configjson,jsontv,jsonzyz,jsonjx)
     
-    def loadTV(self,tvjson):
-        self.tv = tvjson
+    def loadTV(self,tvjson,jsontv):
+        if jsontv:
+            self.tv = jsontv
+        else:
+            self.tv = tvjson
         if len(self.tv) > 0:
             self.actTVChannels = self.tv[0]['channels']
         self.actTVXL = []
@@ -156,9 +266,17 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.player.updateControlValue('影视资源','cur_page',self.cur_page)
         self.player.updateControlValue('影视资源','max_page',self.max_page)
     
-    def loadZYZ(self,zyzjson):
+    def loadZYZ(self,zyzjson,jsonzyz):
+        '''
+        self.zyz = zyzjson
+        if jsonzyz:
+            self.zyz = jsonzyz
+        '''
         li = []
-        for item in zyzjson:
+        zyzdata = zyzjson
+        if jsonzyz:
+            zyzdata = jsonzyz
+        for item in zyzdata:
             if item['type'] == 0 or item['type'] == 1:
                 if 'playUrl' in item:
                     plauurlstr = item['playUrl']
@@ -181,6 +299,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
             reszyz = t.get_result()
             if reszyz:
                 self.zyz.append(reszyz)
+        #'''
         self.actzyz = 0
         if len(self.zyz) > 0:
             n = 0
@@ -257,22 +376,24 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         except:
             self.medias = []
         
-    def loadParser(self,jxjson):
+    def loadParser(self,jxjson,jsonjx):
+        jxdata = jxjson
+        if jsonjx:
+            jxdata = jsonjx
         self.jx = []
         for item in jxjson:
             if 'type' in item:
                 if item['type'] == 1:
                     self.jx.append({'jxname':item['name'],'jxurl':item['url']})
-        print(self.jx)
     
-    def loadSourceFile(self,file):
+    def loadSourceFile(self,file,jsontv,jsonzyz,jsonjx):
         file = open(file, "r",encoding = "UTF-8")
         jsonstr = file.read()
         jsonstr = jsonstr.replace('##','//')
         fileJson = json5.loads(jsonstr)
-        self.loadTV(fileJson["lives"])
-        self.loadZYZ(fileJson['sites'])
-        self.loadParser(fileJson['parses'])
+        self.loadTV(fileJson["lives"],jsontv)
+        self.loadZYZ(fileJson['sites'],jsonzyz)
+        self.loadParser(fileJson['parses'],jsonjx)
         file.close()    
     
     def show(self):
@@ -584,6 +705,7 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
         self.onGetMediaPage(url,apitype)
         
     def onGetMediaPage(self,url,apitype):
+        print(url)
         try:
             res = requests.get(url,timeout = 5,verify=False)
             if res.status_code == 200:
@@ -618,8 +740,8 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                                         elif len(jjinfo) == 2:
                                             js = jjinfo[0]
                                             jsdz = jjinfo[1]
-                                        if jsdz.find('.m3u8') > 0 or jsdz.find('.mp4') > 0:
-                                            urllist.append({'title':js,'url':jsdz})
+                                        #if jsdz.find('.m3u8') > 0 or jsdz.find('.mp4') > 0:
+                                        urllist.append({'title':js,'url':jsdz})
                                 if len(urllist) > 0:
                                     sourcelist.append({'flag':playfromlist[i],'medias':urllist})
                             if len(sourcelist) > 0:
