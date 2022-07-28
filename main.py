@@ -14,14 +14,21 @@ from shutil import copyfile
 import base64
 
 pbc = ["薦","成人电影","麻豆传媒","果冻传媒","乃","抽插","直播","觀","极品","女神","無碼","奸","有碼","无码","3p","女上位","变态","魅惑","女友","少妇","有码","性感","先生","潮吹","潮喷","喷潮","愛","親","澤","婦","幹","絕","對","痴女","免费看","97yj.xyz","番号","宅男","色情","人妖","在线播放","干炮","小姐姐","無","衝撃","撃","狂い","機","橋","堕","電","會所","乳","推特","尻","屁股","奶大","爽","大胸","射","私拍","淫","大乱交","拷問","開発","性爱","高潮","薬","斗鱼","韓國","學","射","操","逼","性生活","肏","實","錄","天美传媒","加勒比","里番","未亡人","tokyo","援交","重口","骚","尤物","全裸","幼女","歐美","蘿莉","流出","泄密","裸贷","啪啪","約","天海翼","國","產","創","風呂","無修正","大尺度","超人氣","写真","小电影","探花","sexy","kin8teng","撸管","金8天國","多p","生殖","丝语","诱惑","彼女","魔穗","素人","绿帽","福利","人妻","刘玥","june","乱伦","妻","无套","罩杯","主播","樂","露脸","奶子","屌","丝袜","车震","萝莉","自慰","自拍","丝袜","美腿","国语对白","调教","誘惑","視頻","熟女","桜","会所"]
-
-
-sourceurls = ["https://cdn.jsdelivr.net/gh/Cyril0563/lanjing_live@main/hd/live_plus.json",
+'''
+sourceurls = ["https://raw-gh.gcdn.mirr.one/520tv/TVbox/main/ts.json",
+"https://raw.githubusercontents.com/520tv/TVbox/main/ts.json"
+]
+'''
+sourceurls = [
+"https://cdn.jsdelivr.net/gh/520tv/mao@main/tvbox.json",
+"https://raw.githubusercontents.com/520tv/mao/main/tvbox.json",
+"https://cdn.jsdelivr.net/gh/Cyril0563/lanjing_live@main/hd/live_plus.json",
 "https://raw.githubusercontents.com/Cyril0563/lanjing_live/main/hd/live_plus.json",
 "https://cdn.jsdelivr.net/gh/Cyril0563/lanjing_live@main/hn/live_plus.json",
 "https://raw.githubusercontents.com/Cyril0563/lanjing_live/main/hn/live_plus.json",
 "https://cdn.jsdelivr.net/gh/Cyril0563/lanjing_live@main/hk/live_plus.json",
 "https://raw.githubusercontents.com/Cyril0563/lanjing_live/main/hk/live_plus.json"]
+
 
 def getRedirect(redirect):
     idx = redirect.find("ext=")
@@ -33,7 +40,9 @@ def getRedirect(redirect):
         return None
 
 def getRedirectLives(redirecturl):
-    r = requests.get(redirecturl,timeout = 1,verify=False,)
+    if redirecturl.find("https://raw.githubusercontents.com") >= 0:
+        redirecturl = redirecturl.replace("https://raw.githubusercontents.com","https://raw-gh.gcdn.mirr.one")
+    r = requests.get(redirecturl,timeout = 5,verify=False,)
     r.encoding = 'utf-8'
     if r.status_code != 200:
         return
@@ -92,6 +101,7 @@ def parserLives(jsonlives):
             tv.append({"group":live["group"],"channels":alllives})
     for redirect in redirects:
         redirecturl = getRedirect(redirect)
+        print(redirecturl)
         rlives = getRedirectLives(redirecturl)
         for rlive in rlives:
             tv.append(rlive)
@@ -137,6 +147,7 @@ def getSourceJson(outfile):
                     savejson["parses"] = parserjson
                     with open(outfile, 'w',encoding='utf-8') as f:
                         json.dump(savejson, f,sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
+                print(url)
                 return livejson,sitejson,parserjson
         except:
             continue
@@ -157,7 +168,7 @@ class CheckZYZThread(threading.Thread):
     def run(self):
         try:
             down_url = self.zyz['api']
-            r = requests.get(down_url,timeout = 5,verify=False) 
+            r = requests.get(down_url,timeout = 1,verify=False) 
             result = r.status_code
             if result == 200:
                 self.result = self.zyz
@@ -870,12 +881,14 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
     def on_zyzparserurl_click(self, page, listControl, item, itemControl):
         if len(self.allmovidesdata[page]['actparserurl']) > item:
             playurl = self.allmovidesdata[page]['actparserurl'][item]['playurl']
-            print(playurl)
             n = self.allmovidesdata[page]['actparserurl'][item]['index']
             playname = page + ' ' + self.allmovidesdata[page]['actmovies'][n]['title']
             playlist = []
-            for item in self.allmovidesdata[page]['actparserurl']:
-                playlist.append({'url':item['playurl']})
+            playlist.append({'url':self.allmovidesdata[page]['actparserurl'][item]['playurl']})
+            n = 0
+            for n in range(len(self.allmovidesdata[page]['actparserurl'])):
+                if n != item:
+                    playlist.append({'url':self.allmovidesdata[page]['actparserurl'][n]['playurl']})
             try:
                 self.player.playMultiUrls(playlist,playname)
             except:
@@ -918,9 +931,10 @@ class livesplugin(StellarPlayer.IStellarPlayerPlugin):
                 jsondata = json.loads(res.text, strict = False)
                 if jsondata:
                     if jsondata['code'] == 200 and jsondata['success'] == 1:
-                        self.allmovidesdata[page]['actparserurl'].append({'jxname':item['jxname'],'playurl':jsondata['url'],'title':jsondata['type'],'index':n})
-                        if self.player.isModalExist(page) and self.allmovidesdata[page]['parserstop'] == False:
-                            self.player.updateControlValue(page,'parserurllist',self.allmovidesdata[page]['actparserurl'])
+                        if jsondata['url'] != url:
+                            self.allmovidesdata[page]['actparserurl'].append({'jxname':item['jxname'],'playurl':jsondata['url'],'title':jsondata['type'],'index':n})
+                            if self.player.isModalExist(page) and self.allmovidesdata[page]['parserstop'] == False:
+                                self.player.updateControlValue(page,'parserurllist',self.allmovidesdata[page]['actparserurl'])
                         return
         except:
             return
