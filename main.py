@@ -20,6 +20,8 @@ sourceurls = ["https://raw-gh.gcdn.mirr.one/520tv/TVbox/main/ts.json",
 ]
 '''
 sourceurls = [
+"https://box.okeybox.top/tv/0xth.json",
+"https://box.okeybox.top/tv/plunju.json",
 "https://cdn.jsdelivr.net/gh/520tv/mao@main/tvbox.json",
 "https://raw.githubusercontents.com/520tv/mao/main/tvbox.json",
 "https://cdn.jsdelivr.net/gh/Cyril0563/lanjing_live@main/hd/live_plus.json",
