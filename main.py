@@ -25,6 +25,7 @@ sourceurls = [
 #"https://box.okeybox.top/tv/plunju.json",
 #"https://cdn.jsdelivr.net/gh/520tv/mao@main/tvbox.json",
 #"https://raw.githubusercontents.com/520tv/mao/main/tvbox.json",
+"https://ghproxy.com/https://raw.githubusercontent.com/simplecelery/stellar-lives/main/tvbox.json",
 "https://ghproxy.com/https://raw.githubusercontent.com/tv-player/tvbox-line/main/tv/ikbb.json",
 "https://cdn.jsdelivr.net/gh/Cyril0563/lanjing_live@main/hd/live_plus.json",
 "https://raw.githubusercontents.com/Cyril0563/lanjing_live/main/hd/live_plus.json",
